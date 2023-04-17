@@ -1,0 +1,40 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  uuid          String   @unique
+  username      String?  @unique
+  password      String?
+  lists         List[]   @relation("lists")
+  sharedListIds String[] @db.ObjectId
+  sharedLists   List[]   @relation(name: "SharedLists", fields: [sharedListIds], references: [id])
+}
+
+model List {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  title         String?
+  ownerId       String
+  owner         User       @relation("lists", fields: [ownerId], references: [uuid])
+  sharedWithIds String[]   @db.ObjectId
+  sharedWith    User[]     @relation(name: "SharedLists", fields: [sharedWithIds], references: [id])
+  shortcuts     Shortcut[]
+}
+
+model Shortcut {
+  id       String     @id @default(auto()) @map("_id") @db.ObjectId
+  title    String
+  url      String
+  icon     String?
+  listId   String     @db.ObjectId
+  list     List       @relation(fields: [listId], references: [id])
+  parentId String?    @db.ObjectId
+  parent   Shortcut?  @relation("ShortcutToShortcut", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children Shortcut[] @relation("ShortcutToShortcut")
+}
