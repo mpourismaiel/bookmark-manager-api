@@ -32,8 +32,9 @@ model Shortcut {
   title    String
   url      String
   icon     String?
+  order    Int
   listId   String     @db.ObjectId
-  list     List       @relation(fields: [listId], references: [id])
+  list     List       @relation(fields: [listId], references: [id], onDelete: Cascade)
   parentId String?    @db.ObjectId
   parent   Shortcut?  @relation("ShortcutToShortcut", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children Shortcut[] @relation("ShortcutToShortcut")
