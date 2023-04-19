@@ -14,14 +14,15 @@ router.get('/', auth, async (req: Request, res) => {
 
   const lists = await prisma.user.findUnique({
     where: { id: req.auth.id },
-    include: {
+    select: {
+      id: true,
+      uuid: true,
+      username: true,
       lists: {
-        include: {
-          shortcuts: {
-            orderBy: {
-              order: 'asc',
-            },
-          },
+        select: {
+          id: true,
+          title: true,
+          shortcuts: true,
         },
       },
     },

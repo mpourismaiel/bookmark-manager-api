@@ -28,7 +28,7 @@ router.post('/register', async (req, res) => {
     })
 
     const token = createToken(user)
-    res.json({ token })
+    res.json({ token, uuid: user.uuid, username })
   } catch (e) {
     res.status(400).json({ error: 'Username already exists' })
     return
@@ -64,13 +64,12 @@ router.put('/profile', auth, async (req: Request, res) => {
 })
 
 router.post('/login', async (req, res) => {
-  const uuid = req.body.uuid
   const username = req.body.username
   let user: User | null = null
-  if (!!uuid) {
-    user = await prisma.user.findUnique({ where: { uuid } })
-  } else if (!!username) {
-    user = await prisma.user.findUnique({ where: { username } })
+  user = await prisma.user.findUnique({ where: { username } })
+
+  if (!user) {
+    user = await prisma.user.findUnique({ where: { uuid: username } })
   }
 
   if (!user) {
@@ -87,7 +86,7 @@ router.post('/login', async (req, res) => {
   }
 
   const token = createToken(user)
-  res.json({ token })
+  res.json({ token, uuid: user.uuid, username: user.username })
 })
 
 export default router
