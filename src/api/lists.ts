@@ -1,7 +1,8 @@
 import express from 'express'
-import { prisma } from '../app'
 import { auth } from '../middlewares'
 import { Request } from 'express-jwt'
+import { List, Shortcut, User } from '../models'
+import mongoose from 'mongoose'
 
 const router = express.Router()
 
@@ -11,23 +12,14 @@ router.get('/', auth, async (req: Request, res) => {
     return
   }
 
-  const lists = await prisma.list.findMany({
-    where: { ownerId: req.auth.uuid },
-    include: {
-      sharedWith: {
-        select: {
-          username: true,
-        },
-      },
-      shortcuts: {
-        orderBy: {
-          order: 'asc',
-        },
-      },
+  const user = await User.findOne({ uuid: req.auth.uuid }).populate({
+    path: 'lists',
+    populate: {
+      path: 'shortcuts',
     },
   })
 
-  res.json(lists)
+  res.json(user)
 })
 
 router.post('/', auth, async (req: Request, res) => {
@@ -38,11 +30,9 @@ router.post('/', auth, async (req: Request, res) => {
 
   const { title } = req.body
 
-  const list = await prisma.list.create({
-    data: {
-      title,
-      ownerId: req.auth.uuid,
-    },
+  const list = await List.create({
+    title,
+    user: req.auth.id,
   })
 
   res.json(list)
@@ -57,10 +47,7 @@ router.put('/:id', auth, async (req: Request, res) => {
   const { id } = req.params
   const { title } = req.body
 
-  const list = await prisma.list.update({
-    where: { id },
-    data: { title },
-  })
+  const list = await List.updateOne({ _id: id, user: req.auth.id }, { title })
 
   res.json(list)
 })
@@ -72,10 +59,7 @@ router.delete('/:id', auth, async (req: Request, res) => {
   }
 
   const { id } = req.params
-
-  const list = await prisma.list.delete({
-    where: { id },
-  })
+  const list = await List.deleteOne({ _id: id, user: req.auth.id })
 
   res.json(list)
 })
@@ -93,35 +77,26 @@ router.put('/:id/reorder', auth, async (req: Request, res) => {
     return
   }
 
-  const list = await prisma.list.findUnique({
-    where: { id },
-    include: {
-      shortcuts: {
-        select: {
-          id: true,
-        },
-      },
-    },
-  })
-
+  const list = await List.findOne({ _id: id, user: req.auth.id }).populate(
+    'shortcuts',
+  )
   if (
-    !list ||
-    list.shortcuts.filter(shortcut => order[shortcut.id] !== undefined)
-      .length !== Object.keys(order).length
+    list?.shortcuts.filter(s => s._id.toString() in order).length !==
+    list?.shortcuts.length
   ) {
     res.status(400).json({ error: 'Invalid order' })
     return
   }
 
-  const updateOperations = list.shortcuts.map(shortcut => {
-    return prisma.shortcut.update({
-      where: { id: shortcut.id },
-      data: { order: order[shortcut.id] },
-    })
-  })
+  const updates = Object.keys(order).map(shortcutId => ({
+    updateOne: {
+      filter: { _id: new mongoose.Types.ObjectId(shortcutId) },
+      update: { order: order[shortcutId] },
+    },
+  }))
+  const result = await Shortcut.bulkWrite(updates)
 
-  const shortcuts = await prisma.$transaction(updateOperations)
-  res.json(shortcuts)
+  res.json(result)
 })
 
 export default router

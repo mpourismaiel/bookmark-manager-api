@@ -1,10 +1,15 @@
-import { PrismaClient } from '@prisma/client'
 import express from 'express'
 import morgan from 'morgan'
 import helmet from 'helmet'
 import cors from 'cors'
+import mongoose from 'mongoose'
 
 require('dotenv').config()
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is not defined')
+}
+
+mongoose.connect(process.env.DATABASE_URL)
 
 import middlewares from './middlewares'
 import api from './api'
@@ -32,5 +37,3 @@ const createApp = () => {
 }
 
 export const app = createApp()
-export const prisma = new PrismaClient()
-prisma.$connect()

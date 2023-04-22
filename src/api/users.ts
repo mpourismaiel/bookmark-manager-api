@@ -1,8 +1,9 @@
 import express from 'express'
 import { Request } from 'express-jwt'
 
-import { prisma } from '../app'
 import { auth } from '../middlewares'
+import { User } from '../models'
+import { organizeShortcuts } from '../utils/nested'
 
 const router = express.Router()
 
@@ -12,28 +13,23 @@ router.get('/', auth, async (req: Request, res) => {
     return
   }
 
-  const lists = await prisma.user.findUnique({
-    where: { id: req.auth.id },
-    select: {
-      id: true,
-      uuid: true,
-      username: true,
-      lists: {
-        select: {
-          id: true,
-          title: true,
-          shortcuts: {
-            include: {
-              children: true,
-              parent: true,
-            },
-          },
-        },
-      },
+  const result = await User.findById(req.auth.id).populate({
+    path: 'lists sharedLists',
+    populate: {
+      path: 'shortcuts',
     },
   })
+  if (!result) {
+    res.status(404).json({ error: 'User not found' })
+    return
+  }
 
-  res.json(lists)
+  const user = result.toJSON()
+  user.lists = (user.lists as any).map(
+    list => (list.shortcuts = organizeShortcuts(list.shortcuts) as any),
+  )
+
+  res.json(user)
 })
 
 export default router

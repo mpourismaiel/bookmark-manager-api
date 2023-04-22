@@ -1,8 +1,9 @@
 import express from 'express'
-import { prisma } from '../app'
 import { auth } from '../middlewares'
 import { Request } from 'express-jwt'
 import { pickDefined } from '../utils/object'
+import { List, Shortcut } from '../models'
+import mongoose from 'mongoose'
 
 const router = express.Router()
 
@@ -12,12 +13,9 @@ router.get('/:listId', auth, async (req: Request, res) => {
     return
   }
 
-  const shortcuts = await prisma.shortcut.findMany({
-    where: { listId: req.params.listId },
-    include: {
-      parent: true,
-    },
-  })
+  const shortcuts = await Shortcut.find({ listId: req.params.listId }).sort(
+    'order',
+  )
 
   res.json(shortcuts)
 })
@@ -29,27 +27,28 @@ router.post('/:listId', auth, async (req: Request, res) => {
   }
 
   const { title, url, icon, parent } = req.body
-  const list = await prisma.list.findUnique({
-    where: { id: req.params.listId },
-    include: {
-      _count: {
-        select: {
-          shortcuts: true,
-        },
+  const list = await List.aggregate([
+    { $match: { _id: new mongoose.Types.ObjectId(req.params.listId) } },
+    {
+      $lookup: {
+        from: 'shortcuts',
+        localField: 'shortcuts',
+        foreignField: '_id',
+        as: 'shortcuts',
       },
     },
-  })
+    { $addFields: { shortcutCount: { $size: '$shortcuts' } } },
+  ])
 
-  const order = (list?._count.shortcuts || -1) + 1
-  const shortcut = await prisma.shortcut.create({
-    data: {
-      title,
-      url,
-      listId: req.params.listId,
-      icon,
-      parent,
-      order,
-    },
+  const order = list.length ? list[0].shortcutCount : 0
+  const shortcut = await Shortcut.create({
+    title,
+    url,
+    list: req.params.listId,
+    user: req.auth.id,
+    icon,
+    parent,
+    order,
   })
 
   res.json(shortcut)
@@ -64,10 +63,13 @@ router.put('/:id', auth, async (req: Request, res) => {
   const { id } = req.params
   const { title, url, icon, parent } = req.body
 
-  const shortcut = await prisma.shortcut.update({
-    where: { id },
-    data: pickDefined({ title, url, icon, parent }),
-  })
+  const shortcut = await Shortcut.updateOne(
+    {
+      _id: id,
+      user: req.auth.id,
+    },
+    pickDefined({ title, url, icon, parent }),
+  )
 
   res.json(shortcut)
 })
@@ -79,10 +81,7 @@ router.delete('/:id', auth, async (req: Request, res) => {
   }
 
   const { id } = req.params
-
-  const shortcut = await prisma.shortcut.delete({
-    where: { id },
-  })
+  const shortcut = await Shortcut.deleteOne({ _id: id })
 
   res.json(shortcut)
 })

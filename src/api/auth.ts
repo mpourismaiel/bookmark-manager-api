@@ -1,16 +1,15 @@
 import express from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { User } from '@prisma/client'
 import { Request } from 'express-jwt'
 import { v4 as uuid } from 'uuid'
 
-import { prisma } from '../app'
+import { User } from '../models'
 import { auth } from '../middlewares'
 
 const router = express.Router()
 
-const createToken = (user: User) =>
+const createToken = user =>
   jwt.sign(
     { id: user.id, uuid: user.uuid, username: user.username },
     process.env.JWT_SECRET || 'just-in-dev',
@@ -19,12 +18,10 @@ const createToken = (user: User) =>
 router.post('/register', async (req, res) => {
   const { username, password } = req.body
   try {
-    const user = await prisma.user.create({
-      data: {
-        uuid: uuid(),
-        username: username || '',
-        password: password ? bcrypt.hashSync(password, 10) : '',
-      },
+    const user = await User.create({
+      username: username || '',
+      password: password ? bcrypt.hashSync(password, 10) : '',
+      uuid: uuid(),
     })
 
     const token = createToken(user)
@@ -41,7 +38,7 @@ router.put('/profile', auth, async (req: Request, res) => {
     return
   }
 
-  const user = await prisma.user.findUnique({ where: { id: req.auth.id } })
+  const user = await User.findOne({ uuid: req.auth.uuid })
   if (!user) {
     res.status(404).json({ error: 'User not found' })
     return
@@ -56,20 +53,16 @@ router.put('/profile', auth, async (req: Request, res) => {
     updateData.password = bcrypt.hashSync(password, 10)
   }
 
-  const updatedUser = await prisma.user.update({
-    where: { id: req.auth.id },
-    data: updateData,
-  })
+  const updatedUser = await User.updateOne({ _id: user._id }, updateData)
   res.json(updatedUser)
 })
 
 router.post('/login', async (req, res) => {
   const username = req.body.username
-  let user: User | null = null
-  user = await prisma.user.findUnique({ where: { username } })
+  let user = await User.findOne({ username })
 
   if (!user) {
-    user = await prisma.user.findUnique({ where: { uuid: username } })
+    user = await User.findOne({ uuid: username })
   }
 
   if (!user) {
@@ -77,12 +70,18 @@ router.post('/login', async (req, res) => {
     return
   }
 
-  if (user.password) {
+  if (user.password && req.body.password) {
     const checkPassword = bcrypt.compareSync(req.body.password, user.password)
     if (!checkPassword) {
       res.status(401).json({ error: 'uuid, username or password not valid' })
       return
     }
+  } else if (
+    (user.password && !req.body.password) ||
+    (!user.password && req.body.password)
+  ) {
+    res.status(401).json({ error: 'uuid, username or password not valid' })
+    return
   }
 
   const token = createToken(user)
