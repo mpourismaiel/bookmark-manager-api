@@ -22,7 +22,12 @@ router.get('/', auth, async (req: Request, res) => {
         select: {
           id: true,
           title: true,
-          shortcuts: true,
+          shortcuts: {
+            include: {
+              children: true,
+              parent: true,
+            },
+          },
         },
       },
     },
