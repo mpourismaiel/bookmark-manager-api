@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 
-const listSchema = new mongoose.Schema({
+export const listSchema = new mongoose.Schema({
   title: {
     type: String,
     required: false,

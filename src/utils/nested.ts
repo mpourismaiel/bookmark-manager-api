@@ -1,23 +1,18 @@
-export function organizeShortcuts(shortcuts) {
-  const tree: any = []
-  const shortcutMap = {}
-
-  // create a map of shortcuts for easier lookup
-  for (const shortcut of shortcuts) {
-    shortcut.children = []
-    shortcutMap[shortcut._id] = shortcut
-  }
-
-  for (const shortcut of shortcuts) {
-    if (shortcut.parent) {
-      const parent = shortcutMap[shortcut.parent]
-      if (parent) {
-        parent.children.push(shortcut)
+export function organizeShortcuts(arr) {
+  const result: any[] = []
+  const map = {}
+  for (let i = 0; i < arr.length; i++) {
+    const obj = arr[i]
+    obj.children = []
+    map[obj._id] = obj
+    if (obj.parent) {
+      if (!map[obj.parent].children) {
+        map[obj.parent].children = []
       }
+      map[obj.parent].children.push(obj)
     } else {
-      tree.push(shortcut)
+      result.push(obj)
     }
   }
-
-  return tree
+  return result
 }

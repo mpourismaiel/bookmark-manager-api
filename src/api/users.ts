@@ -25,9 +25,9 @@ router.get('/', auth, async (req: Request, res) => {
   }
 
   const user = result.toJSON()
-  user.lists = (user.lists as any).map(
-    list => (list.shortcuts = organizeShortcuts(list.shortcuts) as any),
-  )
+  user.lists.forEach((list: any) => {
+    list.shortcuts = organizeShortcuts(list.shortcuts)
+  })
 
   res.json(user)
 })

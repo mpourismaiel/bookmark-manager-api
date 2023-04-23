@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 
-const userSchema = new mongoose.Schema({
+export const userSchema = new mongoose.Schema({
   uuid: {
     type: String,
     required: true,
@@ -8,12 +8,12 @@ const userSchema = new mongoose.Schema({
   },
   username: {
     type: String,
-    required: false,
+    required: true,
     unique: true,
   },
   password: {
     type: String,
-    required: false,
+    required: true,
   },
   lists: [
     {

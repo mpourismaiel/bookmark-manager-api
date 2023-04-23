@@ -17,10 +17,15 @@ const createToken = user =>
 
 router.post('/register', async (req, res) => {
   const { username, password } = req.body
+  if (!username || !password) {
+    res.status(400).json({ error: 'Username and password required' })
+    return
+  }
+
   try {
     const user = await User.create({
-      username: username || '',
-      password: password ? bcrypt.hashSync(password, 10) : '',
+      username,
+      password: bcrypt.hashSync(password, 10),
       uuid: uuid(),
     })
 

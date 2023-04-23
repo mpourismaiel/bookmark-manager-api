@@ -1,6 +1,6 @@
 import mongoose, { Schema } from 'mongoose'
 
-const shortcutSchema = new Schema({
+export const shortcutSchema = new Schema({
   title: {
     type: String,
     required: true,
